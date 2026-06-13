@@ -19,6 +19,7 @@ export interface Profile {
 export interface EventoRow {
   id: string;
   title: string;
+  imagen?: string | null;
   description: string | null;
   category: string;
   location: string | null;
@@ -41,7 +42,7 @@ export interface MensajeEvento {
   id: string;
   evento_id: string;
   remitente_id: string;
-  mensaje: string;
+  contenido: string;
   created_at: string;
   reply_to_id?: string | null;
   // JOIN con profiles para mostrar username y avatar del remitente

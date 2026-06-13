@@ -64,7 +64,7 @@ const PerfilPagina: FC = () => {
       // 1. Cargar eventos creados
       const { data: dataCreados } = await supabase
         .from('eventos')
-        .select('id, title, description, category, location, start_date, end_date, user_id, created_at, updated_at')
+        .select('id, title, description, category, location, start_date, end_date, user_id, created_at, updated_at, imagen')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(20);

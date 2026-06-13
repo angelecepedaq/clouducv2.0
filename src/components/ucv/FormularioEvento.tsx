@@ -1,8 +1,11 @@
 // Formulario de creación de evento — bottom sheet modal
+import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import type { FC, FormEvent } from 'react';
 import type { Categoria } from '@/types/types';
 import { useCrearEvento } from '@/hooks/useCrearEvento';
+import { supabase } from '@/db/supabase';
+import { compressImage } from '@/utils/imageUtils';
 
 type CategoriaEvento = Exclude<Categoria, 'Todos'>;
 
@@ -36,7 +39,9 @@ const estadoInicial = {
 
 const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExito }) => {
   const [form, setForm] = useState(estadoInicial);
-  const [errores, setErrores] = useState<Partial<typeof estadoInicial>>({});
+  const [imagenFile, setImagenFile] = useState<File | null>(null);
+  const [imagenPreview, setImagenPreview] = useState<string | null>(null);
+  const [errores, setErrores] = useState<Record<string, string | undefined>>({});
   const [exito, setExito] = useState(false);
   const { guardando, error: errorServidor, crearEvento, resetError } = useCrearEvento();
   const primerCampoRef = useRef<HTMLInputElement>(null);
@@ -74,17 +79,73 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
     return Object.keys(nuevosErrores).length === 0;
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] ?? null;
+    if (!f) return;
+    if (!f.type.startsWith('image/')) {
+      setErrores((prev) => ({ ...prev, imagen: 'Por favor selecciona una imagen válida' }));
+      return;
+    }
+    setImagenFile(f);
+    setImagenPreview(URL.createObjectURL(f));
+    setErrores((prev) => ({ ...prev, imagen: undefined }));
+  };
+
+  const handleRemoveImage = () => {
+    setImagenFile(null);
+    setImagenPreview(null);
+    setErrores((prev) => ({ ...prev, imagen: undefined }));
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!validar()) return;
 
+    // Generate an id up front so we can upload the image to a path that includes the event id
+    const eventoId = crypto.randomUUID();
+
+    let imagenUrl: string | undefined = undefined;
+    if (imagenFile) {
+      try {
+        let fileToUpload = imagenFile;
+        const maxSizeMB = 1;
+        try {
+          fileToUpload = await compressImage(imagenFile, maxSizeMB, 1080);
+        } catch {
+          if (imagenFile.size > 5 * 1024 * 1024) {
+            setErrores((prev) => ({ ...prev, imagen: 'La imagen es demasiado grande (máximo 5MB)'}));
+            return;
+          }
+        }
+
+        const extension = fileToUpload.name.split('.').pop() || 'webp';
+        const filePath = `eventos/${eventoId}/${Date.now()}.${extension}`;
+        const { error: uploadError } = await supabase.storage
+          .from('eventos')
+          .upload(filePath, fileToUpload, { cacheControl: '3600', upsert: true });
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('eventos')
+          .getPublicUrl(filePath);
+
+        imagenUrl = publicUrl;
+      } catch (_err) {
+        console.error('Error subiendo imagen:', _err);
+        setErrores((prev) => ({ ...prev, imagen: 'Error subiendo imagen. Intenta nuevamente.' }));
+        return;
+      }
+    }
+
     const ok = await crearEvento({
+      id: eventoId,
       title: form.title,
       category: form.category as CategoriaEvento,
       fecha: form.fecha,
       hora: form.hora,
       description: form.description,
       location: form.location || undefined,
+      ...(imagenUrl ? { imagen: imagenUrl } : {}),
     });
 
     if (ok) {
@@ -323,6 +384,51 @@ const FormularioEvento: FC<FormularioEventoProps> = ({ abierto, onCerrar, onExit
                   style={inputStyle}
                   maxLength={150}
                 />
+              </div>
+
+              {/* Imagen del evento (opcional) */}
+              <div>
+                <label className="block text-sm font-normal text-white/80 mb-1.5">
+                  Imagen del evento <span className="text-white/40">(opcional)</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  {imagenPreview ? (
+                    <div className="relative w-20 h-14 rounded-md overflow-hidden">
+                      <Image src={imagenPreview} alt="Preview" fill className="object-cover" unoptimized />
+                    </div>
+                  ) : (
+                    <div className="w-20 h-14 rounded-md" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }} />
+                  )}
+                  <div className="flex-1">
+                    <label
+                      htmlFor="evento-imagen-upload"
+                      className="inline-flex w-full max-w-[220px] items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold text-white transition-all active:scale-95"
+                      style={{ background: 'linear-gradient(135deg, #d946ef, #a855f7)' }}
+                    >
+                      Seleccionar imagen
+                    </label>
+                    <input
+                      id="evento-imagen-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="sr-only"
+                    />
+                    {imagenPreview && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="mt-2 inline-flex w-full max-w-[220px] items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold text-white transition-all active:scale-95"
+                        style={{ background: 'rgba(255,255,255,0.08)' }}
+                      >
+                        Quitar imagen
+                      </button>
+                    )}
+                    {errores.imagen && (
+                      <p className="text-red-400 text-xs mt-1">{errores.imagen}</p>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Botones de acción */}

@@ -60,7 +60,7 @@ const ComentarioItem: FC<{
   const username = mensaje.profiles?.username ?? 'Usuario';
   const avatarUrl = mensaje.profiles?.avatar_url;
   
-  const [likesCount, setLikesCount] = useState(mensaje.likes?.[0]?.count || 0);
+  const [likesCount, setLikesCount] = useState(0);
   const [userLiked, setUserLiked] = useState(false);
   
   useEffect(() => {
@@ -96,17 +96,17 @@ const ComentarioItem: FC<{
           <div className="text-sm text-white/90 leading-snug text-pretty mt-0.5 whitespace-pre-wrap break-words">
             {/* Si ya inyectamos el @username al enviar, evitamos duplicarlo aquí si queremos.
                 Pero como puede tener un reply_to_id directo, usamos regex o simplemente renderizamos. */}
-            {mensaje.mensaje.startsWith('@') ? (
+            {mensaje.contenido.startsWith('@') ? (
               <>
-                <span className="text-[#a855f7] font-medium">{mensaje.mensaje.split(' ')[0]}</span>
-                {' ' + mensaje.mensaje.split(' ').slice(1).join(' ')}
+                <span className="text-[#a855f7] font-medium">{mensaje.contenido.split(' ')[0]}</span>
+                {' ' + mensaje.contenido.split(' ').slice(1).join(' ')}
               </>
             ) : (
               <>
                 {isReply && mensaje.reply_to?.profiles?.username && (
                   <span className="text-[#a855f7] mr-1.5 font-medium">@{mensaje.reply_to.profiles.username}</span>
                 )}
-                {mensaje.mensaje}
+                {mensaje.contenido}
               </>
             )}
           </div>
@@ -125,7 +125,7 @@ const ComentarioItem: FC<{
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               )}
-              {likesCount > 0 && <span>{likesCount}</span>}
+              <span>{likesCount}</span>
             </button>
             <button 
               onClick={() => onReply(mensaje)} 

@@ -164,7 +164,7 @@ const ModalAuth: FC<ModalAuthProps> = ({ abierto, onCerrar, tabInicial = 'login'
           <div className="flex items-center gap-2">
             <div className="w-20 h-20 -my-3 flex items-center justify-center bg-transparent overflow-hidden shrink-0 relative">
               <Image
-                src="/images/logo/logo-dark.svg"
+                src="/images/logo/imgucv.png"
                 alt="Logo UCV"
                 fill
                 className="object-contain"

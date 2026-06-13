@@ -13,6 +13,7 @@ export interface EditarEventoInput {
   hora: string;    // HH:MM
   description: string;
   location?: string;
+  imagen?: string | null; // public URL to the uploaded image (optional)
 }
 
 interface UseEditarEventoResult {
@@ -46,16 +47,23 @@ export function useEditarEvento(): UseEditarEventoResult {
     const endDateObj = new Date(startDateObj.getTime() + 2 * 60 * 60 * 1000);
     const endDate = endDateObj.toISOString();
 
+    const payload: Record<string, unknown> = {
+      title: datos.title.trim(),
+      category: datos.category,
+      description: datos.description.trim(),
+      start_date: startDate,
+      end_date: endDate,
+      location: datos.location?.trim() || null,
+    };
+
+    // Only include imagen if provided (so we don't accidentally null existing image)
+    if (Object.prototype.hasOwnProperty.call(datos, 'imagen')) {
+      payload.imagen = datos.imagen ?? null;
+    }
+
     const { error: supabaseError } = await supabase
       .from('eventos')
-      .update({
-        title: datos.title.trim(),
-        category: datos.category,
-        description: datos.description.trim(),
-        start_date: startDate,
-        end_date: endDate,
-        location: datos.location?.trim() || null,
-      })
+      .update(payload)
       // RLS garantiza que solo el dueño (user_id = auth.uid()) puede hacer UPDATE
       .eq('id', datos.id)
       .eq('user_id', user.id);

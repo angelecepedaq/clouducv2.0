@@ -28,7 +28,7 @@ export function useEventos(): UseEventosResult {
       // 1. Fetch de los eventos
       const { data, error: supabaseError } = await supabase
         .from('eventos')
-        .select('id, title, description, category, location, start_date, end_date, user_id, created_at, updated_at')
+        .select('id, title, description, category, location, start_date, end_date, user_id, created_at, updated_at, imagen')
         .order('created_at', { ascending: true });
 
       if (cancelado) return;

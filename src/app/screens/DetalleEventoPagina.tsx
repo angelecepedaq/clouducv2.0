@@ -1,4 +1,5 @@
 // Página de detalle completo de un evento
+import Image from 'next/image';
 import { useState, useEffect, type FC } from 'react';
 import { supabase } from '@/db/supabase';
 import type { EventoRow } from '@/types/types';
@@ -99,7 +100,7 @@ const DetalleEventoPagina: FC<DetalleEventoPaginaProps> = ({ eventoId, onVolver 
 
     supabase
       .from('eventos')
-      .select('id, title, description, category, location, start_date, end_date, user_id, created_at, updated_at')
+      .select('id, title, description, category, location, start_date, end_date, user_id, created_at, updated_at, imagen')
       .eq('id', eventoId)
       .maybeSingle()
       .then(async ({ data, error }) => {
@@ -196,19 +197,24 @@ const DetalleEventoPagina: FC<DetalleEventoPaginaProps> = ({ eventoId, onVolver 
     <>
       <div className="flex-1 overflow-y-auto min-w-0">
         {/* Hero — gradient con categoría */}
-        <div className="relative w-full h-56" style={{ background: `linear-gradient(135deg, ${catColor}44, ${catColor}11)` }}>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-24 h-24 rounded-3xl flex items-center justify-center" style={{ backgroundColor: `${catColor}22` }}>
-              <span className="text-5xl">
-                {evento.category === 'Académicos' ? '🎓' : evento.category === 'Culturales' ? '🎵' : evento.category === 'Deportivos' ? '⚽' : '💼'}
-              </span>
-            </div>
-          </div>
-          {/* Gradiente para legibilidad */}
-          <div
-            className="absolute inset-0"
-            style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.5) 100%)' }}
-          />
+            <div className="relative w-full h-56">
+                {evento.imagen ? (
+                  <Image src={evento.imagen} alt={evento.title} fill className="absolute inset-0 object-cover" unoptimized />
+                ) : (
+                  <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${catColor}44, ${catColor}11)` }} />
+                )}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-24 h-24 rounded-3xl flex items-center justify-center" style={{ backgroundColor: `${catColor}22` }}>
+                    <span className="text-5xl">
+                      {evento.category === 'Académicos' ? '🎓' : evento.category === 'Culturales' ? '🎵' : evento.category === 'Deportivos' ? '⚽' : '💼'}
+                    </span>
+                  </div>
+                </div>
+                {/* Gradiente para legibilidad */}
+                <div
+                  className="absolute inset-0"
+                  style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.5) 100%)' }}
+                />
 
           {/* Botón volver */}
           <button

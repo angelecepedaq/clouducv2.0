@@ -10,6 +10,8 @@ export interface NuevoEventoInput {
   hora: string;    // time string from input type="time" (HH:MM)
   description: string;
   location?: string;
+  id?: string; // optional pre-generated id
+  imagen?: string | null; // optional public URL
 }
 
 interface UseCrearEventoResult {
@@ -44,8 +46,10 @@ export function useCrearEvento(): UseCrearEventoResult {
     const endDateObj = new Date(startDateObj.getTime() + 2 * 60 * 60 * 1000);
     const endDate = endDateObj.toISOString();
 
-    const { error: supabaseError } = await supabase.from('eventos').insert({
-      id: crypto.randomUUID(),
+    const eventoId = datos.id ?? crypto.randomUUID();
+
+    const insertPayload: Record<string, unknown> = {
+      id: eventoId,
       title: datos.title.trim(),
       category: datos.category,
       description: datos.description.trim(),
@@ -53,7 +57,13 @@ export function useCrearEvento(): UseCrearEventoResult {
       end_date: endDate,
       user_id: user.id,
       location: datos.location?.trim() || null,
-    });
+    };
+
+    if (Object.prototype.hasOwnProperty.call(datos, 'imagen')) {
+      insertPayload.imagen = datos.imagen ?? null;
+    }
+
+    const { error: supabaseError } = await supabase.from('eventos').insert(insertPayload);
 
     setGuardando(false);
 

@@ -1,8 +1,11 @@
 // Formulario de edición de evento — bottom sheet con campos pre-llenados
+import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
-import type { FC, FormEvent } from 'react';
+import type { FC, FormEvent, ChangeEvent } from 'react';
 import type { Categoria, EventoRow } from '@/types/types';
 import { useEditarEvento } from '@/hooks/useEditarEvento';
+import { supabase } from '@/db/supabase';
+import { compressImage } from '@/utils/imageUtils';
 
 type CategoriaEvento = Exclude<Categoria, 'Todos'>;
 
@@ -58,6 +61,9 @@ const FormularioEditarEvento: FC<FormularioEditarEventoProps> = ({
   const [hora, setHora] = useState('');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
+  const [imagenFile, setImagenFile] = useState<File | null>(null);
+  const [imagenPreview, setImagenPreview] = useState<string | null>(null);
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [exito, setExito] = useState(false);
   const { guardando, error: errorServidor, editarEvento, resetError } = useEditarEvento();
@@ -72,6 +78,7 @@ const FormularioEditarEvento: FC<FormularioEditarEventoProps> = ({
       setHora(extractTime(evento.start_date));
       setDescription(evento.description ?? '');
       setLocation(evento.location ?? '');
+      setImagenPreview(evento.imagen ?? null);
       setErrores({});
       setExito(false);
       resetError();
@@ -99,9 +106,69 @@ const FormularioEditarEvento: FC<FormularioEditarEventoProps> = ({
     return Object.keys(e).length === 0;
   };
 
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] ?? null;
+    if (!f) return;
+    if (!f.type.startsWith('image/')) {
+      setErrores((prev) => ({ ...prev, imagen: 'Por favor selecciona una imagen válida' }));
+      return;
+    }
+    setImagenFile(f);
+    setImagenPreview(URL.createObjectURL(f));
+    limpiarError('imagen');
+  };
+
+  const handleRemoveImage = () => {
+    setImagenFile(null);
+    setImagenPreview(null);
+    limpiarError('imagen');
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!evento || !validar()) return;
+
+    let imagenUrl: string | undefined = undefined;
+
+        if (imagenFile) {
+      try {
+        setSubiendoImagen(true);
+        let fileToUpload = imagenFile;
+        const maxSizeMB = 1;
+            try {
+              fileToUpload = await compressImage(imagenFile, maxSizeMB, 1080);
+            } catch {
+              // If compression fails, fall back to original file (but enforce size limit)
+              if (imagenFile.size > 5 * 1024 * 1024) {
+                setErrores({ imagen: 'La imagen es demasiado grande (máximo 5MB)'});
+                setSubiendoImagen(false);
+                return;
+              }
+            }
+
+        const extension = fileToUpload.name.split('.').pop() || 'webp';
+        const filePath = `eventos/${evento.id}/${Date.now()}.${extension}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('eventos')
+          .upload(filePath, fileToUpload, { cacheControl: '3600', upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('eventos')
+          .getPublicUrl(filePath);
+
+        imagenUrl = publicUrl;
+      } catch (err) {
+        console.error('Error subiendo imagen del evento:', err);
+        setErrores({ imagen: 'Error subiendo imagen. Intenta nuevamente.' });
+        setSubiendoImagen(false);
+        return;
+      } finally {
+        setSubiendoImagen(false);
+      }
+    }
 
     const ok = await editarEvento({
       id: evento.id,
@@ -111,6 +178,7 @@ const FormularioEditarEvento: FC<FormularioEditarEventoProps> = ({
       hora,
       description,
       location: location || undefined,
+      ...(imagenUrl ? { imagen: imagenUrl } : {}),
     });
 
     if (ok) {
@@ -344,6 +412,51 @@ const FormularioEditarEvento: FC<FormularioEditarEventoProps> = ({
                 />
               </div>
 
+              {/* Imagen del evento (opcional) */}
+              <div>
+                <label className="block text-sm font-normal text-white/80 mb-1.5">
+                  Imagen del evento <span className="text-white/40">(opcional)</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  {imagenPreview ? (
+                    <div className="relative w-20 h-14 rounded-md overflow-hidden">
+                      <Image src={imagenPreview} alt="Preview" fill className="object-cover" unoptimized />
+                    </div>
+                  ) : (
+                    <div className="w-20 h-14 rounded-md" style={{ backgroundColor: 'rgba(255,255,255,0.04)' }} />
+                  )}
+                  <div className="flex-1">
+                    <label
+                      htmlFor="evento-edit-imagen-upload"
+                      className="inline-flex w-full max-w-[220px] items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold text-white transition-all active:scale-95"
+                      style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+                    >
+                      Seleccionar imagen
+                    </label>
+                    <input
+                      id="evento-edit-imagen-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="sr-only"
+                    />
+                    {errores.imagen && (
+                      <p className="text-red-300 text-xs mt-1">{errores.imagen}</p>
+                    )}
+                    {imagenPreview && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="mt-2 inline-flex w-full max-w-[220px] items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold text-white transition-all active:scale-95"
+                        style={{ background: 'rgba(255,255,255,0.08)' }}
+                      >
+                        Quitar imagen
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {/* Botones */}
               <div className="flex gap-3 pt-3 pb-4 md:pb-8">
                 <button
@@ -360,7 +473,7 @@ const FormularioEditarEvento: FC<FormularioEditarEventoProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={guardando}
+                  disabled={guardando || subiendoImagen}
                   className="flex-1 py-3.5 rounded-xl text-sm font-bold text-white transition-all active:scale-95 flex items-center justify-center gap-2"
                   style={{ background: guardando ? 'rgba(245,158,11,0.4)' : gradBtn }}
                 >

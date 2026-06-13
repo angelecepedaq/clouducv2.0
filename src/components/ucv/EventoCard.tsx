@@ -1,4 +1,5 @@
 // Componente EventoCard para Cloud UCV
+import Image from 'next/image';
 import { useState, MouseEvent } from 'react';
 import type { FC } from 'react';
 import type { Evento } from '@/types/types';
@@ -135,7 +136,12 @@ const EventoCard: FC<EventoCardProps> = ({ evento, onClick }) => {
       onClick={onClick}
     >
       {/* Header visual con color de categoría */}
-      <div className="relative w-full h-32 overflow-hidden" style={{ background: `linear-gradient(135deg, ${catColor}33, ${catColor}11)` }}>
+      <div className="relative w-full h-32 overflow-hidden">
+        {evento.imagen ? (
+          <Image src={evento.imagen} alt={evento.title} fill className="absolute inset-0 object-cover" unoptimized />
+        ) : (
+          <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${catColor}33, ${catColor}11)` }} />
+        )}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${catColor}22` }}>
             <span className="text-3xl">

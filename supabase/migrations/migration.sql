@@ -5653,6 +5653,21 @@ ALTER TABLE "public"."eventos_guardados" ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "insertar_like_mensaje" ON "public"."likes_mensaje" FOR INSERT TO "authenticated" WITH CHECK (("user_id" = "auth"."uid"()));
 
+--
+-- Name: likes_mensaje public select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "likes_mensaje public select" ON "public"."likes_mensaje" FOR SELECT TO "authenticated", "anon" USING (true);
+
+-- Create function to safely insert likes using server-side auth.uid()
+CREATE FUNCTION public.insert_like_mensaje(p_mensaje_id uuid) RETURNS void LANGUAGE sql SECURITY DEFINER AS $$
+    INSERT INTO public.likes_mensaje (mensaje_id, user_id)
+    VALUES (p_mensaje_id, auth.uid())
+    ON CONFLICT DO NOTHING;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.insert_like_mensaje(uuid) TO authenticated;
+
 
 --
 -- Name: mensajes_evento insertar_mensaje_publico; Type: POLICY; Schema: public; Owner: -
