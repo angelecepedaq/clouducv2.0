@@ -204,16 +204,6 @@ export function useMensajesEvento(eventoId: string | null): UseMensajesEventoRes
       }
     };
 
-    const isMissingContenidoError = (error: any) => {
-      if (!error) return false;
-      return (
-        error.code === '42703' ||
-        error.code === 'PGRST204' ||
-        error.message?.includes('contenido') ||
-        error.message?.includes("Could not find the 'contenido' column")
-      );
-    };
-
     let insertResult = await insertMensaje('mensaje');
     if (insertResult.error && (
       insertResult.error.code === '42703' ||
@@ -278,7 +268,7 @@ export function useMensajesEvento(eventoId: string | null): UseMensajesEventoRes
     const { error } = await supabase.rpc('insert_like_mensaje', { p_mensaje_id: mensajeId });
 
     if (error) {
-      if (error.code === '23505' || error.status === 409) {
+      if (error.code === '23505' || ('status' in error && error.status === 409)) {
         pendingLikesRef.current[mensajeId] = false;
         return true;
       }
